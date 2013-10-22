@@ -1,5 +1,5 @@
-Javascript Nebulus
-==================
+Javascript Tower Platformer
+===========================
 
 An HTML5 rotating-tower platform game inspired by the old c64 game "Nebulus"
 
