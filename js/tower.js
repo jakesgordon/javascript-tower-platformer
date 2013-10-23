@@ -26,6 +26,7 @@
       IMPULSE       = 15 * FPS,                                             // player jump impulse
       FALLING_JUMP  = FPS/5,                                                // player allowed to jump for 1/5 second after falling off a platform
       LADDER_EDGE   = 0.6,                                                  // how far from ladder center (60%) is ladder's true collision boundary, e.g. you fall off if you get more than 60% away from center of ladder
+      FLAT          = (location.hash == "#flat"),                           // secret switch to render as a flat 2-d map instead of a tower
       COIN          = { W: ROW_HEIGHT, H: ROW_HEIGHT },                     // logical size of coin
       DIR           = { NONE: 0, LEFT: 1, RIGHT: 2, UP: 3, DOWN: 4 },       // useful enum for declaring an abstract direction
       STEP          = { FRAMES: 8, W: COL_WIDTH/10, H: ROW_HEIGHT },        // attributes of player stepping up
@@ -72,6 +73,16 @@
   function ty(y)                      { return HEIGHT - HORIZON - (y - camera.ry);                         }  // transform y-coord for rendering
   function nearColCenter(x,col,limit) { return limit > Math.abs(x - col2x(col + 0.5))/(COL_WIDTH/2);       }  // is x-coord "near" the center  of a tower column
   function nearRowSurface(y,row)      { return y > (row2y(row+1) - ROW_SURFACE);                           }  // is y-coord "near" the surface of a tower row
+
+  if (FLAT) {
+    tx = function(x, r) {
+      x = normalizex(x-camera.rx);
+      if (x > (tower.w/2)) {
+        x = - (tower.w - x);
+      }
+      return x;
+    };
+  }
 
   //===========================================================================
   // GAME - SETUP/UPDATE/RENDER
@@ -142,8 +153,8 @@
       this.color    = level.color;
       this.rows     = level.map.length;
       this.cols     = level.map[0].length;
-      this.ir       = WIDTH/4;                 // inner radius (walls)
-      this.or       = this.ir * 1.2;           // outer radius (walls plus platforms)
+      this.ir       = FLAT ? WIDTH/2 : WIDTH/4; // inner radius (walls)
+      this.or       = this.ir * 1.2;            // outer radius (walls plus platforms)
       this.w        = this.cols * COL_WIDTH;
       this.h        = this.rows * ROW_HEIGHT;
       this.map      = this.createMap(level.map);
@@ -721,7 +732,7 @@
       this.debug         = Dom.get('debug');
       this.score         = Dom.get('score');
       this.vscore        = 0;
-      this.platformWidth = 2 * tower.or * Math.tan((360/tower.cols) * Math.PI / 360);
+      this.platformWidth = FLAT ? COL_WIDTH : 2 * tower.or * Math.tan((360/tower.cols) * Math.PI / 360);
     },
 
     //-------------------------------------------------------------------------
