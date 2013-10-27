@@ -3,8 +3,8 @@ Javascript Tower Platformer
 
 An HTML5 rotating-tower platform game inspired by the old c64 game "Nebulus"
 
- * play the game (coming soon)
- * read more (coming soon)
+ * [play the game](http://codeincomplete.com/projects/tower-platformer/index.html)
+ * [read more](http://codeincomplete.com/posts/2013/10/27/rotating_tower_platformer/)
  * [view the source](https://github.com/jakesgordon/javascript-tower-platformer)
 
 SUPPORTED BROWSERS
