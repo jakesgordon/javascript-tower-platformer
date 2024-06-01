@@ -150,10 +150,6 @@ Game.Load = {
 
 Game.Math = {
 
-  lerp: function(n, dn, dt) {
-    return n + (dn * dt);
-  },
-
   timestamp: function() {
     return window.performance && window.performance.now ? window.performance.now() : new Date().getTime();
   },
