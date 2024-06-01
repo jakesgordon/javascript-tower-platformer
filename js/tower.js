@@ -53,7 +53,6 @@
 
   var tower,
       monsters,
-      camera,
       player,
       renderer;
 
@@ -68,8 +67,8 @@
   function col2x(col)                 { return col * COL_WIDTH;                                            }  // convert tower column index to x-coord
   function row2y(row)                 { return row * ROW_HEIGHT;                                           }  // convert tower row    index to y-coord
   function x2a(x)                     { return 360 * (normalizex(x)/tower.w);                              }  // convert x-coord to an angle around the tower
-  function tx(x, r)                   { return r * Math.sin((normalizex(x-camera.rx)/tower.w) *2*Math.PI); }  // transform x-coord for rendering
-  function ty(y)                      { return HEIGHT - HORIZON - (y - camera.ry);                         }  // transform y-coord for rendering
+  function tx(x, r)                   { return r * Math.sin((normalizex(x-player.x)/tower.w) *2*Math.PI); }  // transform x-coord for rendering
+  function ty(y)                      { return HEIGHT - HORIZON - (y - player.y);                         }  // transform y-coord for rendering
   function nearColCenter(x,col,limit) { return limit > Math.abs(x - col2x(col + 0.5))/(COL_WIDTH/2);       }  // is x-coord "near" the center  of a tower column
   function nearRowSurface(y,row)      { return y > (row2y(row+1) - ROW_SURFACE);                           }  // is y-coord "near" the surface of a tower row
 
@@ -96,14 +95,12 @@
     tower    = new Tower(level);
     monsters = new Monsters(level);
     player   = new Player();
-    camera   = new Camera();
     renderer = new Renderer(images);
   }
 
   function update(dt) {
     player.update(dt);
     monsters.update(dt);
-    camera.update(dt);
   }
 
   function render(dt) {
@@ -682,30 +679,6 @@
   });
 
   //===========================================================================
-  // CAMERA
-  //===========================================================================
-
-  var Camera = Class.create({
-
-    initialize: function() {
-      this.x    = player.x;
-      this.y    = player.y;
-      this.dx   = 0;
-      this.dy   = 0;
-      this.miny = 0;
-      this.maxy = tower.h;
-    },
-
-    update: function(dt) {
-      this.x  = player.x;
-      this.y  = player.y;
-      this.dx = player.dx;
-      this.dy = player.dy;
-    }
-
-  });
-
-  //===========================================================================
   // RENDERER
   //===========================================================================
 
@@ -728,14 +701,6 @@
 
     render: function(dt) {
 
-      player.rx = normalizex(Game.Math.lerp(player.x, player.dx, dt));
-      player.ry =            Game.Math.lerp(player.y, player.dy, dt);
-      camera.rx = normalizex(Game.Math.lerp(camera.x, camera.dx, dt));
-      camera.ry =            Game.Math.lerp(camera.y, camera.dy, dt);
-
-      player.ry = Math.max(0, player.ry); // dont let sub-frame interpolation take the player below the horizon
-      camera.ry = Math.max(0, camera.ry); // dont let sub-frame interpolation take the camera below the horizon
-
       this.ctx.clearRect(0, 0, WIDTH, HEIGHT);
       this.renderStars(this.ctx);
       this.ctx.save();
@@ -756,8 +721,8 @@
 
     renderStars: function(ctx) {
 
-      var x  = Game.Math.normalize(WIDTH  * camera.x/tower.w, 0, WIDTH),
-          y  = Game.Math.normalize(HEIGHT * camera.y/tower.h, 0, HEIGHT),
+      var x  = Game.Math.normalize(WIDTH  * player.x/tower.w, 0, WIDTH),
+          y  = Game.Math.normalize(HEIGHT * player.y/tower.h, 0, HEIGHT),
           nx = WIDTH  - x,
           ny = HEIGHT - y;
 
@@ -775,7 +740,7 @@
 
     renderGround: function(ctx) {
       var ground = this.ground,
-          x      = ground.w * (camera.rx/tower.w),
+          x      = ground.w * (player.x/tower.w),
           y      = ty(0),
           w      = Math.min(WIDTH, ground.w-x),
           w2     = WIDTH - w;
@@ -825,7 +790,7 @@
       var n, x, a;
       for(n = 0 ; n < tower.cols ; n++) {
         x = (n+offset) * COL_WIDTH;
-        a = Game.Math.normalizeAngle180(x2a(x) - x2a(camera.rx));
+        a = Game.Math.normalizeAngle180(x2a(x) - x2a(player.x));
         if (Game.Math.between(a, -90, 90)) {
           x = tx(x, tower.ir);
           ctx.moveTo(x, y);
@@ -841,8 +806,8 @@
       ctx.strokeStyle = tower.color.stroke;
       ctx.lineWidth   = 2;
 
-      var left  = x2col(camera.rx - tower.w/4),
-          right = x2col(camera.rx + tower.w/4);
+      var left  = x2col(player.x - tower.w/4),
+          right = x2col(player.x + tower.w/4);
 
       this.renderQuadrant(ctx, normalizeColumn(left  - 3), left,  +1);
       this.renderQuadrant(ctx, normalizeColumn(right + 3), right, -1);
@@ -856,9 +821,9 @@
       ctx.strokeStyle = tower.color.stroke;
       ctx.lineWidth   = 2;
 
-      var left   = x2col(camera.rx - tower.w/4),
-          center = x2col(camera.rx),
-          right  = x2col(camera.rx + tower.w/4);
+      var left   = x2col(player.x - tower.w/4),
+          center = x2col(player.x),
+          right  = x2col(player.x + tower.w/4);
 
       this.renderQuadrant(ctx, left,  normalizeColumn(center + 0), +1);
       this.renderQuadrant(ctx, right, normalizeColumn(center - 1), -1);
@@ -869,7 +834,7 @@
 
     renderQuadrant: function(ctx, min, max, dir) {
       var r, y, cell,
-          rmin = Math.max(0,              y2row(camera.ry - HORIZON) - 1),
+          rmin = Math.max(0,              y2row(player.y - HORIZON) - 1),
           rmax = Math.min(tower.rows - 1, rmin + (HEIGHT / ROW_HEIGHT + 1)),
           c    = min;
       while (c != max) {
@@ -894,7 +859,7 @@
     renderPlatform: function(ctx, col, y) {
 
       var x = col2x(col+0.5),
-          a = Game.Math.normalizeAngle180(x2a(x) - x2a(camera.rx)),
+          a = Game.Math.normalizeAngle180(x2a(x) - x2a(player.x)),
           x0 = tx(x, tower.or),
           x1 = x0 - this.platformWidth/2,
           x2 = x0 + this.platformWidth/2;
@@ -911,7 +876,7 @@
 
       var ladder = this.images.ladder,
           x      = col2x(col+0.5),
-          a      = Game.Math.normalizeAngle180(x2a(x) - x2a(camera.rx)),
+          a      = Game.Math.normalizeAngle180(x2a(x) - x2a(player.x)),
           d      = Math.floor(12 * Math.min(1, Math.abs(a/90))),
           x0     = tx(x, tower.or),
           x1     = x0 - ladder.width/2 + 10,
@@ -930,7 +895,7 @@
 
       var coins = this.images.coins,
           x     = col2x(col+0.5),
-          a     = Game.Math.normalizeAngle180(x2a(x) - x2a(camera.rx)),
+          a     = Game.Math.normalizeAngle180(x2a(x) - x2a(player.x)),
           d     = Math.floor(12 * Math.min(1, Math.abs(a/90))),
           w     = COIN.W,
           h     = COIN.H,
@@ -959,20 +924,20 @@
     //-------------------------------------------------------------------------
 
     renderPlayer: function(ctx) {
-      ctx.drawImage(this.images.player, player.animation.x + (player.animationFrame * player.animation.w), player.animation.y, player.animation.w, player.animation.h, tx(player.rx, tower.ir) - player.w/2, ty(player.ry) - player.h, player.w, player.h);
+      ctx.drawImage(this.images.player, player.animation.x + (player.animationFrame * player.animation.w), player.animation.y, player.animation.w, player.animation.h, tx(player.x, tower.ir) - player.w/2, ty(player.y) - player.h, player.w, player.h);
       if (PLAYER.DEBUG) {
         ctx.strokeStyle = "#000000";
         ctx.lineWidth   = 1;
-        ctx.strokeRect(tx(player.rx, tower.ir) - player.w/2, ty(player.ry + player.h), player.w, player.h);
+        ctx.strokeRect(tx(player.x, tower.ir) - player.w/2, ty(player.y + player.h), player.w, player.h);
         ctx.fillStyle = "#800000";
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.topLeft.x,          ty(player.ry + player.collision.topLeft.y),      5,  5);
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.topRight.x,         ty(player.ry + player.collision.topRight.y),    -5,  5);
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.middleLeft.x,       ty(player.ry + player.collision.middleLeft.y),   5,  5);
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.middleRight.x,      ty(player.ry + player.collision.middleRight.y), -5,  5);
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.bottomLeft.x,       ty(player.ry + player.collision.bottomLeft.y),   5, -5);
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.bottomRight.x,      ty(player.ry + player.collision.bottomRight.y), -5, -5);
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.ladderUp.x - 2.5,   ty(player.ry + player.collision.ladderUp.y),     5,  5);
-        ctx.fillRect(tx(player.rx, tower.ir) + player.collision.ladderDown.x - 2.5, ty(player.ry + player.collision.ladderDown.y),   5, -5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.topLeft.x,          ty(player.y + player.collision.topLeft.y),      5,  5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.topRight.x,         ty(player.y + player.collision.topRight.y),    -5,  5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.middleLeft.x,       ty(player.y + player.collision.middleLeft.y),   5,  5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.middleRight.x,      ty(player.y + player.collision.middleRight.y), -5,  5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.bottomLeft.x,       ty(player.y + player.collision.bottomLeft.y),   5, -5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.bottomRight.x,      ty(player.y + player.collision.bottomRight.y), -5, -5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.ladderUp.x - 2.5,   ty(player.y + player.collision.ladderUp.y),     5,  5);
+        ctx.fillRect(tx(player.x, tower.ir) + player.collision.ladderDown.x - 2.5, ty(player.y + player.collision.ladderDown.y),   5, -5);
       }
     },
 
